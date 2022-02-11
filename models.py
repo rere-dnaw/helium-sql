@@ -49,11 +49,13 @@ class FearGreed(Base):
     time_stamp = Column('timestamp', Integer)
     date = Column('Date', DateTime)
     value = Column('Value', Integer)
+    classification = Column('Classification', String)
 
-    def __init__(self, time_stamp, date, value):
+    def __init__(self, time_stamp, date, value , classification):
         self.time_stamp = time_stamp
         self.date = date
         self.value = value
+        self.classification = classification
 
 
 class BurnedDC(Base):

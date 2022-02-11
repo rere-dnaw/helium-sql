@@ -1,11 +1,12 @@
-from models import FearGreed, Prices, Coins
+## run every hour
+
+from functools import partial
+from models import Prices, Coins
 from base import Session, engine, Base
 import statics
 import ccxt
 from datetime import datetime
 import my_methods
-import requests
-
 
 
 
@@ -54,51 +55,6 @@ def get_coin_id(pair):
     return [item[0] for item in pair_id][0]
 
 
-def add_feergreed(row):
-    '''
-    '''
-    row['date'] = datetime.fromtimestamp(int(row['timestamp'])).strftime('%Y-%m-%d %H:%M:%S')
-    indexFG = FearGreed(time_stamp = int(row['timestamp']),
-                        date = datetime.strptime(row['date'], "%Y-%m-%d %H:%M:%S"),
-                        value = int(row['value']),
-                        classification= row['value_classification'])
-    session.add(indexFG)
-
-
-def init_db():
-    '''
-    This method will fill db table 
-    '''
-
-    hours = int(my_methods.count_hours(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
-                                datetime.now()))
-
-    days = int(my_methods.count_days(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
-                                datetime.now()))
- 
-
-    fill_db(days, hours)
-
-
-def fill_db(days, hours):
-    '''
-    '''
-    for pair in statics.TOKEN_LIST:
-        add_coin(pair)
-        session.commit()
-
-        insert_1h_interval(pair, hours)
-        
-        insert_4h_interval(pair, int(round(hours/4,0)))
-
-        insert_1d_interval(pair, days)
-
-    fear_gree_index = requests.get('https://api.alternative.me/fng/?limit={0}'.format(days)).json()
-    for fear_greed_val in fear_gree_index['data']:
-        add_feergreed(fear_greed_val)
-    session.commit()
-
-
 def insert_1h_interval(pair, hours):
     '''
     '''
@@ -131,10 +87,31 @@ def insert_1d_interval(pair, days):
         add_price(row, pairID, interval)
     session.commit()
 
-if session.query(Coins).first() is None:
-    init_db()
+
+def add_missing_price():
+    '''
+    '''
+
+    pairList = [item[0] for item in session.query(Coins.name).all()]
+
+    for pair in pairList:
+        coinID = get_coin_id(pair)
+
+        date_last_1h = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('1h')).order_by(Prices.date.desc()).first().date
+        # hours - 1 because of UTC
+        hours = int(my_methods.count_hours(date_last_1h, datetime.now())) - 1
+        insert_1h_interval(pair, hours)
+
+        date_last_4h = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('4h')).order_by(Prices.date.desc()).first().date
+        hours = int(round(int((my_methods.count_hours(date_last_4h, datetime.now()))-1)/4,0))     
+        insert_4h_interval(pair, hours)
+
+        date_last_1d = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('1d')).order_by(Prices.date.desc()).first().date
+        days = int(my_methods.count_days(date_last_1d, datetime.now()))
+        insert_1d_interval(pair, days)
 
 
+add_missing_price()
 
 session.commit()
 session.close()

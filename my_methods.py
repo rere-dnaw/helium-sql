@@ -37,3 +37,4 @@ def count_days(start_date, end_date):
     else:
         print('function: count_days. Wrong parameter format. Para: {0} {1}'.format(start_date, end_date))
         return 0
+        
