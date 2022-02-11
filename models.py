@@ -1,74 +1,70 @@
-from sqlalchemy import Column, Float, Integer, String, DateTime
+from sqlalchemy import Column, Float, Integer, String, DateTime, ForeignKey
 from base import Base
+from sqlalchemy.orm import relationship
                                  
 
-class BTC_1D(Base):
-    __tablename__ = "BTC_1D"
+class Coins(Base):
+    __tablename__ = "Coins"
+
+    id = Column(Integer, primary_key=True)
+    name = Column('Name', String)
+    prices = relationship("Prices")
+
+    def __init__(self, name):
+        self.name = name
+
+
+class Prices(Base):
+    __tablename__ = "Prices"
+
+    id = Column(Integer, primary_key=True)
+    coin_id = Column(Integer, ForeignKey('Coins.id'), nullable=False)
+    time_stamp = Column('timestamp', Integer)
+    date = Column('Date', DateTime)
+    interval = Column('Interval', String)
+    open = Column('Open', Float)
+    high = Column('High', Float)
+    low = Column('Low', Float)
+    close = Column('Close', Float)
+    volume = Column('Volume', Float)
+
+    def __init__(self, coin_id, time_stamp, date, interval,
+                    open, high, low, close, 
+                    volume):
+        self.coin_id = coin_id
+        self.time_stamp = time_stamp
+        self.date = date
+        self.interval = interval
+        self.open = open
+        self.high = high
+        self.low = low
+        self.close = close
+        self.volume = volume
+
+
+class FearGreed(Base):
+    __tablename__ = "FearGreed"
 
     id = Column(Integer, primary_key=True)
     time_stamp = Column('timestamp', Integer)
     date = Column('Date', DateTime)
-    open_value = Column('Open', Float)
-    high_value = Column('High', Float)
-    low_value = Column('Low', Float)
-    close_value = Column('Close', Float)
-    volume_value = Column('Volume', Float)
+    value = Column('Value', Integer)
 
-    def __init__(self, time_stamp, date, open_value, 
-                    high_value, low_value, close_value, 
-                    volume_value):
+    def __init__(self, time_stamp, date, value):
         self.time_stamp = time_stamp
         self.date = date
-        self.open_value = open_value
-        self.high_value = high_value
-        self.low_value = low_value
-        self.close_value = close_value
-        self.volume_value = volume_value
+        self.value = value
 
 
-class BTC_1H(Base):
-    __tablename__ = "BTC_1H"
+class BurnedDC(Base):
+    __tablename__ = "BurnedDC"
 
     id = Column(Integer, primary_key=True)
     time_stamp = Column('timestamp', Integer)
     date = Column('Date', DateTime)
-    open_value = Column('Open', Float)
-    high_value = Column('High', Float)
-    low_value = Column('Low', Float)
-    close_value = Column('Close', Float)
-    volume_value = Column('Volume', Float)
+    value = Column('Value', Integer)
 
-    def __init__(self, time_stamp, date, open_value, 
-                    high_value, low_value, close_value, 
-                    volume_value):
+    def __init__(self, time_stamp, date, value):
         self.time_stamp = time_stamp
         self.date = date
-        self.open_value = open_value
-        self.high_value = high_value
-        self.low_value = low_value
-        self.close_value = close_value
-        self.volume_value = volume_value
-
-
-class BTC_4H(Base):
-    __tablename__ = "BTC_4H"
-
-    id = Column(Integer, primary_key=True)
-    time_stamp = Column('timestamp', Integer)
-    date = Column('Date', DateTime)
-    open_value = Column('Open', Float)
-    high_value = Column('High', Float)
-    low_value = Column('Low', Float)
-    close_value = Column('Close', Float)
-    volume_value = Column('Volume', Float)
-
-    def __init__(self, time_stamp, date, open_value, 
-                    high_value, low_value, close_value, 
-                    volume_value):
-        self.time_stamp = time_stamp
-        self.date = date
-        self.open_value = open_value
-        self.high_value = high_value
-        self.low_value = low_value
-        self.close_value = close_value
-        self.volume_value = volume_value
+        self.value = value

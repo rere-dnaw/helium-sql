@@ -1,87 +1,10 @@
-from models import BTC_1D, BTC_1H, BTC_4H
+from models import Prices, Coins
 from base import Session, engine, Base
 import statics
 import ccxt
 from datetime import datetime
+import my_methods
 
-
-def fill_db_table(session, pair, timeframe, record_number):
-    '''
-    This method will fill db table 
-    '''
-
-    data = exchange.fetch_ohlcv(pair, timeframe, limit=record_number)
-
-    for row in data:
-        row.insert(1, datetime.utcfromtimestamp(int(row[0]/1000)).strftime('%Y-%m-%d %H:%M:%S'))
-        record = None
-
-        if timeframe == '1h':
-            record = BTC_1H(row[0],
-                            datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S"),
-                            row[2],
-                            row[3],
-                            row[4],
-                            row[5],
-                            row[6])
-        elif timeframe == '4h':
-            record = BTC_4H(row[0],
-                            datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S"),
-                            row[2],
-                            row[3],
-                            row[4],
-                            row[5],
-                            row[6])
-        else:
-            record = BTC_1D(row[0],
-                            datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S"),
-                            row[2],
-                            row[3],
-                            row[4],
-                            row[5],
-                            row[6])
-
-
-        session.add(record)
-
-
-def count_hours(start_date, end_date):
-    '''
-    The date format must be: %Y-%m-%d %H:%M:%S
-    e.g. 2022-01-11 00:00:00
-    parameters:
-    @start_date(string) date in correct format
-    @end_date(string) date in correct format
-    return:
-    @hours(int) number of hours
-    '''
-
-    if (type(start_date) is datetime and type(end_date) is datetime):
-        duration_in_s =  (end_date - start_date).total_seconds()
-        return divmod(duration_in_s, 3600)[0]
-    else:
-        print('function: count_hours. Wrong parameter format. Para: {0} {1}'.format(start_date, end_date))
-        return 0
-
-
-def count_days(start_date, end_date):
-    '''
-    The date format must be: %Y-%m-%d %H:%M:%S
-    e.g. 2022-01-11 00:00:00
-    parameters:
-    @start_date(string) date in correct format
-    @end_date(string) date in correct format
-    return:
-    @days(int) number of days
-    '''
-
-    if (type(start_date) is datetime and type(end_date) is datetime):
-        duration_in_s =  (end_date - start_date).total_seconds()
-        return divmod(duration_in_s, 86400)[0]
-    else:
-        print('function: count_days. Wrong parameter format. Para: {0} {1}'.format(start_date, end_date))
-        return 0
-         
 
 
 exchange = ccxt.binance({
@@ -93,16 +16,84 @@ exchange = ccxt.binance({
 Base.metadata.create_all(engine)
 
 session = Session()
-hours_number = int(count_hours(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
+
+
+def add_price(row, pairID, interval):
+    '''
+    '''
+    row.insert(1, datetime.utcfromtimestamp(int(row[0]/1000)).strftime('%Y-%m-%d %H:%M:%S'))
+    row.insert(2, interval)
+    price = Prices(coin_id = pairID,
+                    time_stamp = row[0],
+                    date = datetime.strptime(row[1], "%Y-%m-%d %H:%M:%S"),
+                    interval = row[2],
+                    open = row[3],
+                    high = row[4],
+                    low = row[5],
+                    close = row[6],
+                    volume = row[7])
+                
+    session.add(price)
+
+
+def add_coin(coin):
+    '''
+    '''
+    pairs = [item[0] for item in session.query(Coins).with_entities(Coins.name).all()]
+    if coin not in pairs:
+        session.add(Coins(name = coin))
+
+def get_coin_id(pair):
+    '''
+    '''
+    pair_id = session.query(Coins).with_entities(Coins.id) \
+                .filter(Coins.name.like(pair)).all()
+    return [item[0] for item in pair_id][0]
+
+def init_db():
+    '''
+    This method will fill db table 
+    '''
+
+    hours = int(my_methods.count_hours(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
                                 datetime.now()))
 
-days_number = int(count_days(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
+    days = int(my_methods.count_days(datetime.strptime(statics.START_DAY_BINANCE_DATA, "%Y-%m-%d %H:%M:%S"),
                                 datetime.now()))
+ 
 
-for token in statics.TOKEN_LIST:
-    fill_db_table(session, token, '1h', hours_number)
-    fill_db_table(session, token, '4h', int(round(hours_number/4,0)))
-    fill_db_table(session, token, '1d', days_number)
+    for pair in statics.TOKEN_LIST:
+        add_coin(pair)
+        session.commit()
+
+
+        pairID = get_coin_id(pair)
+        
+        
+        interval = '1h'
+        data = exchange.fetch_ohlcv(pair, interval, limit=hours)
+        for row in data:
+            add_price(row, pairID, interval)
+        session.commit()
+
+
+        interval = '4h'
+        data = exchange.fetch_ohlcv(pair, interval, limit=int(round(hours/4,0)))
+        for row in data:
+            add_price(row, pairID, interval)
+        session.commit()
+
+
+        interval = '1d'
+        data = exchange.fetch_ohlcv(pair, interval, limit=days)
+        for row in data:
+            add_price(row, pairID, interval)
+        session.commit()
+            
+
+
+init_db()
+
 
 
 session.commit()
