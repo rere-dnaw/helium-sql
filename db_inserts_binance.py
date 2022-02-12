@@ -1,13 +1,12 @@
 ## run every hour
 
 from functools import partial
-from models import Prices, Coins
+from models import Prices, Coins, BurnedDC
 from base import Session, engine, Base
 import statics
 import ccxt
 from datetime import datetime
 import my_methods
-
 
 
 exchange = ccxt.binance({

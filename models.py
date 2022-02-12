@@ -64,9 +64,23 @@ class BurnedDC(Base):
     id = Column(Integer, primary_key=True)
     time_stamp = Column('timestamp', Integer)
     date = Column('Date', DateTime)
-    value = Column('Value', Integer)
+    interval = Column('Interval', String)
+    state_channel = Column('State channel', Integer)
+    fee = Column('Fee', Integer)
+    assert_location = Column('Assert location', Integer)
+    add_gateway = Column('Add gateway', Integer)
+    total = Column('total', Integer)
 
-    def __init__(self, time_stamp, date, value):
+    def __init__(self, time_stamp, date, interval,
+                    state_channel, fee, assert_location,
+                    add_gateway, total):
         self.time_stamp = time_stamp
         self.date = date
-        self.value = value
+        self.interval = interval
+        self.state_channel = state_channel
+        self.fee = fee
+        self.assert_location = assert_location
+        self.add_gateway = add_gateway
+        self.total = total
+
+        

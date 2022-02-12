@@ -1,12 +1,10 @@
-from functools import partial
-from models import Prices, Coins, FearGreed
+# run everyday 3:00AM
+
+from models import FearGreed
 from base import Session, engine, Base
-import statics
-import ccxt
 from datetime import datetime
 import my_methods
 import requests
-
 
 
 Base.metadata.create_all(engine)

@@ -1,4 +1,4 @@
-from models import FearGreed, Prices, Coins
+from models import FearGreed, Prices, Coins, BurnedDC
 from base import Session, engine, Base
 import statics
 import ccxt
@@ -65,6 +65,20 @@ def add_feergreed(row):
     session.add(indexFG)
 
 
+def add_DCburn(row):
+    '''
+    '''
+    DCburn = BurnedDC(time_stamp = row['time_stamp'],
+                    date = row['date'],
+                    interval = row['interval'],
+                    state_channel = row['state_channel'],
+                    fee = row['fee'],
+                    assert_location = row['assert_location'],
+                    add_gateway = row['add_gateway'],
+                    total = row['total'])
+    session.add(DCburn)
+
+
 def init_db():
     '''
     This method will fill db table 
@@ -83,19 +97,84 @@ def init_db():
 def fill_db(days, hours):
     '''
     '''
-    for pair in statics.TOKEN_LIST:
-        add_coin(pair)
-        session.commit()
+    # for pair in statics.TOKEN_LIST:
+    #     add_coin(pair)
+    #     session.commit()
 
-        insert_1h_interval(pair, hours)
+    #     insert_1h_interval(pair, hours)
         
-        insert_4h_interval(pair, int(round(hours/4,0)))
+    #     insert_4h_interval(pair, int(round(hours/4,0)))
 
-        insert_1d_interval(pair, days)
+    #     insert_1d_interval(pair, days)
 
-    fear_gree_index = requests.get('https://api.alternative.me/fng/?limit={0}'.format(days)).json()
-    for fear_greed_val in fear_gree_index['data']:
-        add_feergreed(fear_greed_val)
+    # fear_gree_index = requests.get('https://api.alternative.me/fng/?limit={0}'.format(days)).json()
+    # for fear_greed_val in fear_gree_index['data']:
+    #     add_feergreed(fear_greed_val)
+
+
+
+    # create list of days
+    date_list = my_methods.create_list_days(days)
+
+    for i in range (0,len(date_list)-1):
+        query = {'min_time':date_list[i].isoformat(),
+                'max_time': date_list[i+1].isoformat(),
+                'bucket':'day'}
+
+        response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+        response_json = response.json()
+        record = response_json['data'][0]
+        record['date'] = datetime.fromisoformat(response_json['meta']['min_time'][:-1])
+        record['time_stamp'] = int(round(record['date'].timestamp()))
+        record['interval'] = '1d'
+
+
+        add_DCburn(record)
+        record = {}
+
+        query = {'min_time':date_list[i].isoformat(),
+                'max_time': date_list[i+1].isoformat(),
+                'bucket':'hour'}
+    
+        response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+        response_json = response.json()
+
+        record_list = response_json['data']
+        record_list.reverse()
+
+        hour_list = my_methods.create_list_hours(datetime.fromisoformat(response_json['meta']['min_time'][:-1]), 24)
+
+        for i in range(0,len(hour_list)):
+            if 'total' in record_list[i] and record_list[i]['total'] != None:
+                record['total'] = record_list[i]['total']
+            else:
+                record['total'] = 0
+
+            if 'state_channel' in record_list[i] and record_list[i]['state_channel'] != None:
+                record['state_channel'] = record_list[i]['state_channel']
+            else:
+                record['state_channel'] = 0
+
+            if 'fee' in record_list[i] and record_list[i]['fee'] != None:
+                record['fee'] = record_list[i]['fee']
+            else:
+                record['fee'] = 0
+
+            if 'assert_location' in record_list[i] and record_list[i]['assert_location'] != None:
+                record['assert_location'] = record_list[i]['assert_location']
+            else:
+                record['assert_location'] = 0
+
+            if 'add_gateway' in record_list[i] and record_list[i]['add_gateway'] != None:
+                record['add_gateway'] = record_list[i]['add_gateway']
+            else:
+                record['add_gateway'] = 0
+
+            record['date'] = hour_list[i]
+            record['time_stamp'] = int(round(record['date'].timestamp()))
+            record['interval'] = '1h'
+            add_DCburn(record)
+
     session.commit()
 
 
@@ -131,9 +210,9 @@ def insert_1d_interval(pair, days):
         add_price(row, pairID, interval)
     session.commit()
 
+
 if session.query(Coins).first() is None:
     init_db()
-
 
 
 session.commit()
