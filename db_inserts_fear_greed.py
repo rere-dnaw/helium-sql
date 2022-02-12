@@ -35,7 +35,6 @@ def add_missing_FG_value():
         for fear_greed_val in fear_gree_index['data']:
             add_feergreed(fear_greed_val)
         session.commit()
-    
 
 
 add_missing_FG_value()
