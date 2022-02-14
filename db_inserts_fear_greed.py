@@ -14,6 +14,7 @@ session = Session()
 
 def add_feergreed(row):
     '''
+    This method will insert row to data base model
     '''
     row['date'] = datetime.fromtimestamp(int(row['timestamp'])).strftime('%Y-%m-%d %H:%M:%S')
     indexFG = FearGreed(time_stamp = int(row['timestamp']),
@@ -25,8 +26,9 @@ def add_feergreed(row):
 
 def add_missing_FG_value():
     '''
+    This method will pull missing info data for
+    fear and greed index.
     '''
-
     date_last_1d = session.query(FearGreed).order_by(FearGreed.date.desc()).first().date
     days = int(my_methods.count_days(date_last_1d, datetime.now()))
 

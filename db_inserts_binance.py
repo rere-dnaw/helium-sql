@@ -1,7 +1,6 @@
 ## run every hour
 
-from functools import partial
-from models import Prices, Coins, BurnedDC
+from models import Prices, Coins
 from base import Session, engine, Base
 import statics
 import ccxt

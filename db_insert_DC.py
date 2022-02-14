@@ -1,8 +1,7 @@
-from functools import partial
+# every hour
+
 from models import BurnedDC
 from base import Session, engine, Base
-import statics
-import ccxt
 from datetime import datetime
 import my_methods
 import requests
@@ -50,13 +49,45 @@ def add_missing_price():
 
             response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
             response_json = response.json()
-            record = response_json['data'][0]
+            record = {}
+            if len(response_json['data']) == 0:
+                record['total'] = 0
+                record['state_channel'] = 0
+                record['fee'] = 0
+                record['assert_location'] = 0
+                record['add_gateway'] = 0
+            else:
+                if 'total' in response_json['data'][0] and response_json['data'][0]['total'] != None:
+                    record['total'] = response_json['data'][0]['total']
+                else:
+                    record['total'] = 0
+
+                if 'state_channel' in response_json['data'][0] and response_json['data'][0]['state_channel'] != None:
+                    record['state_channel'] = response_json['data'][0]['state_channel']
+                else:
+                    record['state_channel'] = 0
+
+                if 'fee' in response_json['data'][0] and response_json['data'][0]['fee'] != None:
+                    record['fee'] = response_json['data'][0]['fee']
+                else:
+                    record['fee'] = 0
+
+                if 'assert_location' in response_json['data'][0] and response_json['data'][0]['assert_location'] != None:
+                    record['assert_location'] = response_json['data'][0]['assert_location']
+                else:
+                    record['assert_location'] = 0
+
+                if 'add_gateway' in response_json['data'][0] and response_json['data'][0]['add_gateway'] != None:
+                    record['add_gateway'] = response_json['data'][0]['add_gateway']
+                else:
+                    record['add_gateway'] = 0
+
             record['date'] = datetime.fromisoformat(response_json['meta']['min_time'][:-1])
             record['time_stamp'] = int(round(record['date'].timestamp()))
             record['interval'] = '1d'
 
-
-        add_DCburn(record)
+            add_DCburn(record)
+        session.commit()
         
 
     max_time = datetime.now().replace(minute = 00, second = 00, microsecond = 00)
@@ -105,12 +136,8 @@ def add_missing_price():
             record['time_stamp'] = int(round(record['date'].timestamp()))
             record['interval'] = '1h'
             add_DCburn(record)
-
-
-
-
+        session.commit()
 
 add_missing_price()
 
-session.commit()
 session.close()
