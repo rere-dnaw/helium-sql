@@ -83,4 +83,22 @@ class BurnedDC(Base):
         self.add_gateway = add_gateway
         self.total = total
 
+
+class InflationHNT(Base):
+    __tablename__ = "InflationHNT"
+
+    id = Column(Integer, primary_key=True)
+    time_stamp = Column('timestamp', Integer)
+    date = Column('Date', DateTime)
+    interval = Column('Interval', String)
+    rewards = Column('Rewards', Integer)
+    token_supply = Column('Token Supply', Integer)
+
+    def __init__(self, time_stamp, date, interval, rewards , token_supply):
+        self.time_stamp = time_stamp
+        self.date = date
+        self.interval = interval
+        self.value = rewards
+        self.token_supply = token_supply
+
         
