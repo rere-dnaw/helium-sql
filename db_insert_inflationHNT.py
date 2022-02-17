@@ -1,10 +1,12 @@
 # every hour
 
-from models import BurnedDC
+from models import InflationHNT
 from base import Session, engine, Base
 from datetime import datetime
 import my_methods
 import requests
+from requests.adapters import HTTPAdapter, Retry
+import statics
 
 
 Base.metadata.create_all(engine)
@@ -12,132 +14,150 @@ Base.metadata.create_all(engine)
 session = Session()
 
 
-def add_DCburn(row):
+
+retry_strategy = Retry(
+    total=20,
+    status_forcelist=[429, 500, 502, 503, 504],
+    method_whitelist=["HEAD", "GET", "OPTIONS"]
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+http = requests.Session()
+http.mount("https://", adapter)
+http.mount("http://", adapter)
+
+
+def add_InflationHNT(row):
     '''
+    Add data about HNT rewars into InflationHNT table
     '''
-    DCburn = BurnedDC(time_stamp = row['time_stamp'],
+    DCburn = InflationHNT(time_stamp = row['time_stamp'],
                     date = row['date'],
                     interval = row['interval'],
-                    state_channel = row['state_channel'],
-                    fee = row['fee'],
-                    assert_location = row['assert_location'],
-                    add_gateway = row['add_gateway'],
-                    total = row['total'])
+                    rewards = row['rewards'],
+                    token_supply = row['token_supply'])
     session.add(DCburn)
 
 
-def add_missing_price():
+def prepare_Inflation_record_1d(api_data):
     '''
+    This function will prepare data for insering
+    into table database for timeframe 1d.
     '''
+    min_time = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
+    max_time = datetime.fromisoformat(api_data['meta']['max_time'][:-1])
+    days = my_methods.count_days(min_time, max_time)
 
-    date_last_1h = session.query(BurnedDC).filter(BurnedDC.interval.like('1h')).order_by(BurnedDC.date.desc()).first().date
-    # hours - 1 because of UTC
-    hours = int(my_methods.count_hours(date_last_1h, datetime.now())) - 1
+    days_list = my_methods.create_list_days(min_time, days)
 
-    date_last_1d = session.query(BurnedDC).filter(BurnedDC.interval.like('1d')).order_by(BurnedDC.date.desc()).first().date
-    days = int(my_methods.count_days(date_last_1d, datetime.now()))
+    for j in range(0,len(days_list)):
+        record = {}
+
+        if len(api_data['data']) == 0:
+                record['rewards'] = 0
+                record['token_supply'] = 0
+        else:
+            if 'total' in api_data['data'][0] and api_data['data'][0]['total'] != None:
+                    record['rewards'] = api_data['data'][0]['total']
+            else:
+                record['rewards'] = 0
+
+        record['token_supply'] = 0
+        record['date'] = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
+        record['time_stamp'] = int(round(record['date'].timestamp()))
+        record['interval'] = '1d'
+
+        add_InflationHNT(record)
+        print('Created record model for time stamp: {0}'.format(api_data['meta']['min_time']))
+ 
+
+def prepare_Inflation_record_1h(api_data):
+    '''
+    This function will prepare data for insering
+    into table database for timeframe 1h.
+    '''
+    min_time = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
+    max_time = datetime.fromisoformat(api_data['meta']['max_time'][:-1])
+    hours = my_methods.count_hours(min_time, max_time)
+
+    hour_list = my_methods.create_list_hours(min_time, hours)
+
     
 
-    date_list = my_methods.create_list_days(days)
+    for j in range(0,len(hour_list)):
+        record = {}
+        if 'total' in api_data['data'][j] and api_data['data'][j]['total'] != None:
+            record['rewards'] = api_data['data'][j]['total']
+        else:
+            record['rewards'] = 0
 
+        record['token_supply'] = 0
+        record['date'] = hour_list[j]
+        record['time_stamp'] = int(round(record['date'].timestamp()))
+        record['interval'] = '1h'
+
+        
+        add_InflationHNT(record)
+        print('Created record model for time stamp: {0}'.format(hour_list[j]))
+
+
+def add_HNT_inflation_data():
+    '''
+    '''
+    date_last_1h = ''
+    date_last_1d = ''
+
+    if session.query(InflationHNT).filter(InflationHNT.interval.like('1d')).order_by(InflationHNT.date.desc()).first() is None:
+        date_last_1d = datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+    else:
+        date_last_1d = session.query(InflationHNT).filter(InflationHNT.interval.like('1d')).order_by(InflationHNT.date.desc()).first().date
+
+    if session.query(InflationHNT).filter(InflationHNT.interval.like('1h')).order_by(InflationHNT.date.desc()).first() is None:
+        date_last_1h = datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+    else:
+        date_last_1h = session.query(InflationHNT).filter(InflationHNT.interval.like('1h')).order_by(InflationHNT.date.desc()).first().date
+
+    # hours - 1 because of UTC
+    hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
+
+    days = my_methods.count_days(date_last_1d, datetime.now())
+    
+    date_list = my_methods.create_list_days(datetime.now(), days)
+
+    chunk_size = 2
+    chunked_list = [date_list[i:i+chunk_size] for i in range(0, len(date_list), chunk_size)]
 
     if len(date_list) > 1:
-        for i in range (0,len(date_list)-1):
-            query = {'min_time':date_list[i].isoformat(),
-                    'max_time': date_list[i+1].isoformat(),
+        for chunk in chunked_list:
+            query = {'min_time':chunk[0].isoformat(),
+                    'max_time': chunk[-1].isoformat(),
                     'bucket':'day'}
-
-            response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+            response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
             response_json = response.json()
-            record = {}
-            if len(response_json['data']) == 0:
-                record['total'] = 0
-                record['state_channel'] = 0
-                record['fee'] = 0
-                record['assert_location'] = 0
-                record['add_gateway'] = 0
-            else:
-                if 'total' in response_json['data'][0] and response_json['data'][0]['total'] != None:
-                    record['total'] = response_json['data'][0]['total']
-                else:
-                    record['total'] = 0
-
-                if 'state_channel' in response_json['data'][0] and response_json['data'][0]['state_channel'] != None:
-                    record['state_channel'] = response_json['data'][0]['state_channel']
-                else:
-                    record['state_channel'] = 0
-
-                if 'fee' in response_json['data'][0] and response_json['data'][0]['fee'] != None:
-                    record['fee'] = response_json['data'][0]['fee']
-                else:
-                    record['fee'] = 0
-
-                if 'assert_location' in response_json['data'][0] and response_json['data'][0]['assert_location'] != None:
-                    record['assert_location'] = response_json['data'][0]['assert_location']
-                else:
-                    record['assert_location'] = 0
-
-                if 'add_gateway' in response_json['data'][0] and response_json['data'][0]['add_gateway'] != None:
-                    record['add_gateway'] = response_json['data'][0]['add_gateway']
-                else:
-                    record['add_gateway'] = 0
-
-            record['date'] = datetime.fromisoformat(response_json['meta']['min_time'][:-1])
-            record['time_stamp'] = int(round(record['date'].timestamp()))
-            record['interval'] = '1d'
-
-            add_DCburn(record)
-        session.commit()
-        
-
-    max_time = datetime.now().replace(minute = 00, second = 00, microsecond = 00)
+            response_json['data'].reverse()   
+            prepare_Inflation_record_1d(response_json)
+            session.commit()        
 
     if hours > 1:
-        query = {'min_time':date_last_1h.isoformat(),
-                'max_time': max_time.isoformat(),
-                'bucket':'hour'}
-    
-        response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
-        response_json = response.json()
+        chunk_size = 200
+        dates_list = my_methods.create_list_hours(date_last_1h, hours)
+        chunked_list = [dates_list[i:i+chunk_size] for i in range(0, len(dates_list), chunk_size)]
 
-        record_list = response_json['data']
-        record_list.reverse()
+        for chunk in chunked_list:
 
-        hour_list = my_methods.create_list_hours(datetime.fromisoformat(response_json['meta']['min_time'][:-1]), hours)
+            query = {'min_time':chunk[0].isoformat(),
+                    'max_time': chunk[-1].isoformat(),
+                    'bucket':'hour'}
+        
+            response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
+            response_json = response.json()
 
-        for i in range(0,len(hour_list)):
-            record = {}
-            if 'total' in record_list[i] and record_list[i]['total'] != None:
-                record['total'] = record_list[i]['total']
-            else:
-                record['total'] = 0
+            response_json['data'].reverse()   
 
-            if 'state_channel' in record_list[i] and record_list[i]['state_channel'] != None:
-                record['state_channel'] = record_list[i]['state_channel']
-            else:
-                record['state_channel'] = 0
+            prepare_Inflation_record_1h(response_json)
+            
+            session.commit()
 
-            if 'fee' in record_list[i] and record_list[i]['fee'] != None:
-                record['fee'] = record_list[i]['fee']
-            else:
-                record['fee'] = 0
 
-            if 'assert_location' in record_list[i] and record_list[i]['assert_location'] != None:
-                record['assert_location'] = record_list[i]['assert_location']
-            else:
-                record['assert_location'] = 0
-
-            if 'add_gateway' in record_list[i] and record_list[i]['add_gateway'] != None:
-                record['add_gateway'] = record_list[i]['add_gateway']
-            else:
-                record['add_gateway'] = 0
-
-            record['date'] = hour_list[i]
-            record['time_stamp'] = int(round(record['date'].timestamp()))
-            record['interval'] = '1h'
-            add_DCburn(record)
-        session.commit()
-
-add_missing_price()
+add_HNT_inflation_data()
 
 session.close()

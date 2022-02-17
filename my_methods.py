@@ -14,7 +14,7 @@ def count_hours(start_date, end_date):
 
     if (type(start_date) is datetime and type(end_date) is datetime):
         duration_in_s =  (end_date - start_date).total_seconds()
-        return divmod(duration_in_s, 3600)[0]
+        return int(divmod(duration_in_s, 3600)[0])
     else:
         print('function: count_hours. Wrong parameter format. Para: {0} {1}'.format(start_date, end_date))
         return 0
@@ -39,7 +39,7 @@ def count_days(start_date, end_date):
         return 0
 
 
-def create_list_days(days_back):
+def create_list_days(day, days_back):
     '''
     This method create list of dates.
     From today to @days_back provided.
@@ -49,13 +49,13 @@ def create_list_days(days_back):
     '''
     import datetime
 
-    now = datetime.datetime.now().replace(hour=00, minute = 00, second = 00, microsecond = 00)
+    day = day.replace(hour=00, minute = 00, second = 00, microsecond = 00)
 
     # create list of days
-    date_list = [now - datetime.timedelta(days=x) for x in range(days_back)]
+    date_list = [day - datetime.timedelta(days=x) for x in range(days_back + 1)]
     date_list.reverse()
 
-    return date_list
+    return date_list[:-1]
 
 
 def create_list_hours(day, hours):
@@ -83,3 +83,47 @@ def chunks(l, n):
     '''
     n = max(1, n)
     return (l[i:i+n] for i in range(0, len(l), n))
+
+
+def add_day(today):
+    """
+    Add a day to the current day.
+
+    This takes care of historic offset changes and DST.
+
+    Parameters
+    ----------
+    today : timezone-aware datetime object
+
+    Returns
+    -------
+    tomorrow : timezone-aware datetime object
+    """
+
+    import datetime
+
+    tomorrow = today + datetime.timedelta(days=1)
+
+    return tomorrow
+
+
+def add_hour(date):
+    """
+    Add a day to the current day.
+
+    This takes care of historic offset changes and DST.
+
+    Parameters
+    ----------
+    today : timezone-aware datetime object
+
+    Returns
+    -------
+    tomorrow : timezone-aware datetime object
+    """
+
+    import datetime
+
+    newHour = date + datetime.timedelta(hours=1)
+
+    return newHour
