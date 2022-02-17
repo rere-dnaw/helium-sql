@@ -5,11 +5,24 @@ from base import Session, engine, Base
 from datetime import datetime
 import my_methods
 import requests
+from requests.adapters import HTTPAdapter, Retry
 
 
 Base.metadata.create_all(engine)
 
 session = Session()
+
+
+
+retry_strategy = Retry(
+    total=20,
+    status_forcelist=[429, 500, 502, 503, 504],
+    method_whitelist=["HEAD", "GET", "OPTIONS"]
+)
+adapter = HTTPAdapter(max_retries=retry_strategy)
+http = requests.Session()
+http.mount("https://", adapter)
+http.mount("http://", adapter)
 
 
 def add_DCburn(row):
@@ -24,6 +37,99 @@ def add_DCburn(row):
                     add_gateway = row['add_gateway'],
                     total = row['total'])
     session.add(DCburn)
+
+
+def prepare_DC_record_1d(api_data):
+    '''
+    This function will prepare data for insering
+    into table database for timeframe 1d.
+    '''
+    record = {}
+    if len(api_data['data']) == 0:
+        record['total'] = 0
+        record['state_channel'] = 0
+        record['fee'] = 0
+        record['assert_location'] = 0
+        record['add_gateway'] = 0
+    else:
+        if 'total' in api_data['data'][0] and api_data['data'][0]['total'] != None:
+            record['total'] = api_data['data'][0]['total']
+        else:
+            record['total'] = 0
+
+        if 'state_channel' in api_data['data'][0] and api_data['data'][0]['state_channel'] != None:
+            record['state_channel'] = api_data['data'][0]['state_channel']
+        else:
+            record['state_channel'] = 0
+
+        if 'fee' in api_data['data'][0] and api_data['data'][0]['fee'] != None:
+            record['fee'] = api_data['data'][0]['fee']
+        else:
+            record['fee'] = 0
+
+        if 'assert_location' in api_data['data'][0] and api_data['data'][0]['assert_location'] != None:
+            record['assert_location'] = api_data['data'][0]['assert_location']
+        else:
+            record['assert_location'] = 0
+
+        if 'add_gateway' in api_data['data'][0] and api_data['data'][0]['add_gateway'] != None:
+            record['add_gateway'] = api_data['data'][0]['add_gateway']
+        else:
+            record['add_gateway'] = 0
+
+    record['date'] = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
+    record['time_stamp'] = int(round(record['date'].timestamp()))
+    record['interval'] = '1d'
+
+    add_DCburn(record)
+
+        
+
+def prepare_DC_record_1h(api_data):
+    '''
+    This function will prepare data for insering
+    into table database for timeframe 1d.
+    '''
+    min_time = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
+    max_time = datetime.fromisoformat(api_data['meta']['max_time'][:-1])
+    hours = my_methods.count_hours(min_time, max_time)
+
+    hour_list = my_methods.create_list_hours(min_time, hours)
+
+    for i in range(0,len(hour_list)):
+        record = {}
+        if 'total' in api_data['data'][i] and api_data['data'][i]['total'] != None:
+            record['total'] = api_data['data'][i]['total']
+        else:
+            record['total'] = 0
+
+        if 'state_channel' in api_data['data'][i] and api_data['data'][i]['state_channel'] != None:
+            record['state_channel'] = api_data['data'][i]['state_channel']
+        else:
+            record['state_channel'] = 0
+
+        if 'fee' in api_data['data'][i] and api_data['data'][i]['fee'] != None:
+            record['fee'] = api_data['data'][i]['fee']
+        else:
+            record['fee'] = 0
+
+        if 'assert_location' in api_data['data'][i] and api_data['data'][i]['assert_location'] != None:
+            record['assert_location'] = api_data['data'][i]['assert_location']
+        else:
+            record['assert_location'] = 0
+
+        if 'add_gateway' in api_data['data'][i] and api_data['data'][i]['add_gateway'] != None:
+            record['add_gateway'] = api_data['data'][i]['add_gateway']
+        else:
+            record['add_gateway'] = 0
+
+        record['date'] = hour_list[i]
+        record['time_stamp'] = int(round(record['date'].timestamp()))
+        record['interval'] = '1h'
+        
+        add_DCburn(record)
+        print('Created record model for time stamp: {0}'.format(hour_list[i]))
+
 
 
 def add_missing_price():
@@ -47,96 +153,38 @@ def add_missing_price():
                     'max_time': date_list[i+1].isoformat(),
                     'bucket':'day'}
 
-            response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+            response = http.get('https://api.helium.io/v1/dc_burns/sum', params=query)
             response_json = response.json()
-            record = {}
-            if len(response_json['data']) == 0:
-                record['total'] = 0
-                record['state_channel'] = 0
-                record['fee'] = 0
-                record['assert_location'] = 0
-                record['add_gateway'] = 0
-            else:
-                if 'total' in response_json['data'][0] and response_json['data'][0]['total'] != None:
-                    record['total'] = response_json['data'][0]['total']
-                else:
-                    record['total'] = 0
-
-                if 'state_channel' in response_json['data'][0] and response_json['data'][0]['state_channel'] != None:
-                    record['state_channel'] = response_json['data'][0]['state_channel']
-                else:
-                    record['state_channel'] = 0
-
-                if 'fee' in response_json['data'][0] and response_json['data'][0]['fee'] != None:
-                    record['fee'] = response_json['data'][0]['fee']
-                else:
-                    record['fee'] = 0
-
-                if 'assert_location' in response_json['data'][0] and response_json['data'][0]['assert_location'] != None:
-                    record['assert_location'] = response_json['data'][0]['assert_location']
-                else:
-                    record['assert_location'] = 0
-
-                if 'add_gateway' in response_json['data'][0] and response_json['data'][0]['add_gateway'] != None:
-                    record['add_gateway'] = response_json['data'][0]['add_gateway']
-                else:
-                    record['add_gateway'] = 0
-
-            record['date'] = datetime.fromisoformat(response_json['meta']['min_time'][:-1])
-            record['time_stamp'] = int(round(record['date'].timestamp()))
-            record['interval'] = '1d'
-
-            add_DCburn(record)
-        session.commit()
-        
-
+            prepare_DC_record_1d(response_json)
+        session.commit()        
+    
     max_time = datetime.now().replace(minute = 00, second = 00, microsecond = 00)
 
     if hours > 1:
-        query = {'min_time':date_last_1h.isoformat(),
-                'max_time': max_time.isoformat(),
-                'bucket':'hour'}
-    
-        response = requests.get('https://api.helium.io/v1/dc_burns/sum', params=query)
-        response_json = response.json()
+        chunk_size = 200
+        dates_list = my_methods.create_list_hours(date_last_1h, hours)
+        chunked_list = [dates_list[i:i+chunk_size] for i in range(0, len(dates_list), chunk_size)]
 
-        record_list = response_json['data']
-        record_list.reverse()
+        for chunk in chunked_list:
 
-        hour_list = my_methods.create_list_hours(datetime.fromisoformat(response_json['meta']['min_time'][:-1]), hours)
 
-        for i in range(0,len(hour_list)):
-            record = {}
-            if 'total' in record_list[i] and record_list[i]['total'] != None:
-                record['total'] = record_list[i]['total']
-            else:
-                record['total'] = 0
+            query = {'min_time':chunk[0].isoformat(),
+                    'max_time': chunk[-1].isoformat(),
+                    'bucket':'hour'}
+        
+            response = http.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+            response_json = response.json()
 
-            if 'state_channel' in record_list[i] and record_list[i]['state_channel'] != None:
-                record['state_channel'] = record_list[i]['state_channel']
-            else:
-                record['state_channel'] = 0
+            
 
-            if 'fee' in record_list[i] and record_list[i]['fee'] != None:
-                record['fee'] = record_list[i]['fee']
-            else:
-                record['fee'] = 0
+            response_json['data'].reverse()   
 
-            if 'assert_location' in record_list[i] and record_list[i]['assert_location'] != None:
-                record['assert_location'] = record_list[i]['assert_location']
-            else:
-                record['assert_location'] = 0
+            prepare_DC_record_1h(response_json)
+            
+            session.commit()
 
-            if 'add_gateway' in record_list[i] and record_list[i]['add_gateway'] != None:
-                record['add_gateway'] = record_list[i]['add_gateway']
-            else:
-                record['add_gateway'] = 0
+        
 
-            record['date'] = hour_list[i]
-            record['time_stamp'] = int(round(record['date'].timestamp()))
-            record['interval'] = '1h'
-            add_DCburn(record)
-        session.commit()
 
 add_missing_price()
 

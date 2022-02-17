@@ -71,7 +71,15 @@ def create_list_hours(day, hours):
 
     day += datetime.timedelta(hours=hours)
     # create list of hours
-    hour_list = [day - datetime.timedelta(hours=x) for x in range(hours)]
+    hour_list = [day - datetime.timedelta(hours=x) for x in range(int(hours))]
     hour_list.reverse()
 
     return hour_list
+
+
+def chunks(l, n):
+    '''
+    Split list on chunks
+    '''
+    n = max(1, n)
+    return (l[i:i+n] for i in range(0, len(l), n))
