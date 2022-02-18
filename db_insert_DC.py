@@ -215,6 +215,7 @@ def pull_data_interval_1d():
                 prepare_DC_record_1d(response_json)
                 session.commit()
             else:
+                chunk.append(my_methods.add_day(chunk[-1]))
                 for i in range (0,len(chunk)-1):
                     query = {'min_time':chunk[i].isoformat(),
                             'max_time': chunk[i+1].isoformat(),
@@ -230,7 +231,7 @@ def pull_data_DC_burned():
     Will pull data for burned DC
     '''
     pull_data_interval_1d()
-    pull_data_interval_1h()
+    #pull_data_interval_1h()
 
 
 def add_first_record():
@@ -251,7 +252,7 @@ def add_first_record():
     add_DCburn(row)
     session.commit()
 
-#add_first_record()
+add_first_record()
 pull_data_DC_burned()
 
 session.close()
