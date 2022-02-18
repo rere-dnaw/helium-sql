@@ -36,6 +36,16 @@ def add_InflationHNT(row):
                             rewards = row['rewards'],
                             token_supply = row['token_supply'])
     session.add(inflationHNT)
+    
+
+def get_last_date(interval):
+    '''
+    Will get start date for generating data for provided interval.
+    '''
+    if session.query(InflationHNT).filter(InflationHNT.interval.like(interval)).order_by(InflationHNT.date.desc()).first() is None:
+        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+    else:
+        return session.query(InflationHNT).filter(InflationHNT.interval.like(interval)).order_by(InflationHNT.date.desc()).first().date
 
 
 def prepare_inflation_record_1h(api_data):
@@ -65,22 +75,12 @@ def prepare_inflation_record_1h(api_data):
         print('Created record model for time stamp: {0}'.format(hour_list[j]))
 
 
-def get_last_date1h():
-    '''
-    Will get start date for generating data for 1h interval.
-    '''
-    if session.query(InflationHNT).filter(InflationHNT.interval.like('1h')).order_by(InflationHNT.date.desc()).first() is None:
-        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
-    else:
-        return session.query(InflationHNT).filter(InflationHNT.interval.like('1h')).order_by(InflationHNT.date.desc()).first().date
-
-
 def pull_data_interval_1h():
     '''
     Will pull HNT inflation data for interval 1 hour
     '''
 
-    date_last_1h = get_last_date1h()
+    date_last_1h = get_last_date('1h')
 
     # hours - 1 because of UTC
     hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
@@ -118,7 +118,8 @@ def prepare_inflation_record_1d(api_data):
     This function will prepare data for insering
     into database table for timeframe 1d.
     '''
-
+    api_data['data'] = [api_data['data']]
+    
     min_time = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
     max_time = datetime.fromisoformat(api_data['meta']['max_time'][:-1])
     days = my_methods.count_days(min_time, max_time)
@@ -146,51 +147,25 @@ def prepare_inflation_record_1d(api_data):
         print('Created record model for time stamp: {0}'.format(str(record['date'])))
 
 
-def get_last_date1d():
-    '''
-    Will get start date for generating data for 1d interval.
-    '''
-    if session.query(InflationHNT).filter(InflationHNT.interval.like('1d')).order_by(InflationHNT.date.desc()).first() is None:
-        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
-    else:
-        return session.query(InflationHNT).filter(InflationHNT.interval.like('1d')).order_by(InflationHNT.date.desc()).first().date
-
-
 def pull_data_interval_1d():
     '''
     Will pull HNT inflation data for interval 1 day
     '''
-    date_last_1d = get_last_date1d()
+    date_last_1d = get_last_date('1d')
 
     days = my_methods.count_days(date_last_1d, datetime.now())
     
     date_list = my_methods.create_list_days(datetime.now(), days - 1)
 
-    chunk_size = 30
-    chunked_list = [date_list[i:i+chunk_size] for i in range(0, len(date_list), chunk_size)]
 
-    if len(date_list) > 1:
-        for chunk in chunked_list:
+    for i in range (0,len(date_list)-1):
+        query = {'min_time':date_list[i].isoformat(),
+                'max_time': date_list[i+1].isoformat()}
 
-            query = {'min_time':chunk[0].isoformat() + 'Z',
-                    'max_time': my_methods.add_day(chunk[-1]).isoformat() + 'Z',
-                    'bucket':'day'}
-
-            response = requests.get('https://api.helium.io/v1/rewards/sum', params=query)
-            response_json = response.json()
-            response_json['data'].reverse()  
-            if len(response_json['data']) == len(chunk):
-                prepare_inflation_record_1d(response_json)
-                session.commit()
-            else:
-                for i in range (0,len(chunk)-1):
-                    query = {'min_time':chunk[i].isoformat(),
-                            'max_time': chunk[i+1].isoformat(),
-                            'bucket':'day'}
-                    response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
-                    response_json = response.json()
-                    prepare_inflation_record_1d(response_json)
-                    session.commit() 
+        response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
+        response_json = response.json()
+        prepare_inflation_record_1d(response_json)
+        session.commit() 
 
 
 def pull_HNT_inflation_data():
@@ -198,7 +173,7 @@ def pull_HNT_inflation_data():
     Will pull data for burned DC
     '''
     pull_data_interval_1d()
-    pull_data_interval_1h()
+    #pull_data_interval_1h()
 
 
 def add_first_record():

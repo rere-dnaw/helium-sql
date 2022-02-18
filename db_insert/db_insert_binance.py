@@ -87,7 +87,6 @@ def add_coin_price_data():
         coin_id = get_coin_id(pair)
         date_last_1d = get_last_date(coin_id, '1d')
         date_last_1h = get_last_date(coin_id, '1h')
-        date_last_4h = get_last_date(coin_id, '4h')
 
         days = my_methods.count_days(date_last_1d, datetime.now())
         hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1

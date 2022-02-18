@@ -39,6 +39,16 @@ def add_DCburn(row):
     session.add(DCburn)
 
 
+def get_last_date(interval):
+    '''
+    Will get start date for generating data for provided interval.
+    '''
+    if session.query(BurnedDC).filter(BurnedDC.interval.like(interval)).order_by(BurnedDC.date.desc()).first() is None:
+        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+    else:
+        return session.query(BurnedDC).filter(BurnedDC.interval.like(interval)).order_by(BurnedDC.date.desc()).first().date
+
+
 def prepare_DC_record_1h(api_data):
     '''
     This function will prepare data for insering
@@ -85,22 +95,12 @@ def prepare_DC_record_1h(api_data):
         print('Created record model for time stamp: {0}'.format(hour_list[i]))
 
 
-def get_last_date1h():
-    '''
-    Will get start date for generating data for 1h interval.
-    '''
-    if session.query(BurnedDC).filter(BurnedDC.interval.like('1h')).order_by(BurnedDC.date.desc()).first() is None:
-        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
-    else:
-        return session.query(BurnedDC).filter(BurnedDC.interval.like('1h')).order_by(BurnedDC.date.desc()).first().date
-
-
 def pull_data_interval_1h():
     '''
     Will pull DC data for interval 1 hour
     '''
 
-    date_last_1h = get_last_date1h()
+    date_last_1h = get_last_date('1h')
 
     # hours - 1 because of UTC
     hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
@@ -188,21 +188,11 @@ def prepare_DC_record_1d(api_data):
         print('Created record model for time stamp: {0}'.format(str(record['date'])))
 
 
-def get_last_date1d():
-    '''
-    Will get start date for generating data for 1d interval.
-    '''
-    if session.query(BurnedDC).filter(BurnedDC.interval.like('1d')).order_by(BurnedDC.date.desc()).first() is None:
-        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
-    else:
-        return session.query(BurnedDC).filter(BurnedDC.interval.like('1d')).order_by(BurnedDC.date.desc()).first().date
-
-
 def pull_data_interval_1d():
     '''
     Will pull DC data for interval 1 day
     '''
-    date_last_1d = get_last_date1d()
+    date_last_1d = get_last_date('1d')
 
     days = my_methods.count_days(date_last_1d, datetime.now())
     
@@ -261,7 +251,7 @@ def add_first_record():
     add_DCburn(row)
     session.commit()
 
-add_first_record()
+#add_first_record()
 pull_data_DC_burned()
 
 session.close()
