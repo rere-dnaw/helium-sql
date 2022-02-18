@@ -98,7 +98,7 @@ class InflationHNT(Base):
         self.time_stamp = time_stamp
         self.date = date
         self.interval = interval
-        self.value = rewards
+        self.rewards = rewards
         self.token_supply = token_supply
 
         

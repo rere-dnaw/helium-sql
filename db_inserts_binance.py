@@ -48,68 +48,61 @@ def add_coin(coin):
 def get_coin_id(pair):
     '''
     '''
-    pair_id = session.query(Coins).with_entities(Coins.id) \
-                .filter(Coins.name.like(pair)).all()
-    return [item[0] for item in pair_id][0]
+    if session.query(Coins).with_entities(Coins.id) \
+            .filter(Coins.name.like(pair)).first() is None:
+        return None
+    else:
+        pair_id = session.query(Coins).with_entities(Coins.id) \
+                    .filter(Coins.name.like(pair)).all()
+        return [item[0] for item in pair_id][0]
 
 
-def insert_1h_interval(pair, hours):
+def pull_data_for_interval(pair, interval, days):
     '''
     '''
     pairID = get_coin_id(pair)
-    interval = '1h'
-    data = exchange.fetch_ohlcv(pair, interval, limit=hours)
-    for row in data:
-        add_price(row, pairID, interval)
-    session.commit()
-
-
-def insert_4h_interval(pair, hours):
-    '''
-    '''
-    pairID = get_coin_id(pair)
-    interval = '4h'
-    data = exchange.fetch_ohlcv(pair, interval, limit=hours)
-    for row in data:
-        add_price(row, pairID, interval)
-    session.commit()
-
-
-def insert_1d_interval(pair, days):
-    '''
-    '''
-    pairID = get_coin_id(pair)
-    interval = '1d'
     data = exchange.fetch_ohlcv(pair, interval, limit=days)
     for row in data:
         add_price(row, pairID, interval)
     session.commit()
 
 
-def add_missing_price():
+def get_last_date(coin_id, interval):
+    '''
+    Will get start date for generating data for provided interval.
+    '''
+    if coin_id is not None:
+        if session.query(Prices).filter(Prices.coin_id.like(coin_id)).filter(Prices.interval.like(interval)).order_by(Prices.date.desc()).first() is None:
+            return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+        else:
+            return session.query(Prices).filter(Prices.coin_id.like(coin_id)).filter(Prices.interval.like(interval)).order_by(Prices.date.desc()).first().date
+    else:
+        return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
+
+
+def add_coin_price_data():
     '''
     '''
+    for pair in statics.TOKEN_LIST:
+        coin_id = get_coin_id(pair)
+        date_last_1d = get_last_date(coin_id, '1d')
+        date_last_1h = get_last_date(coin_id, '1h')
+        date_last_4h = get_last_date(coin_id, '4h')
 
-    pairList = [item[0] for item in session.query(Coins.name).all()]
+        days = my_methods.count_days(date_last_1d, datetime.now())
+        hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
 
-    for pair in pairList:
-        coinID = get_coin_id(pair)
+        add_coin(pair)
+        session.commit()
 
-        date_last_1h = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('1h')).order_by(Prices.date.desc()).first().date
-        # hours - 1 because of UTC
-        hours = int(my_methods.count_hours(date_last_1h, datetime.now())) - 1
-        insert_1h_interval(pair, hours)
+        pull_data_for_interval(pair, '1d', days)
 
-        date_last_4h = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('4h')).order_by(Prices.date.desc()).first().date
-        hours = int(round(int((my_methods.count_hours(date_last_4h, datetime.now()))-1)/4,0))     
-        insert_4h_interval(pair, hours)
+        pull_data_for_interval(pair, '1h', hours)
 
-        date_last_1d = session.query(Prices).filter(Prices.coin_id.like(coinID)).filter(Prices.interval.like('1d')).order_by(Prices.date.desc()).first().date
-        days = int(my_methods.count_days(date_last_1d, datetime.now()))
-        insert_1d_interval(pair, days)
+        pull_data_for_interval(pair, '4h', int(round(hours/4,0)))
 
 
-add_missing_price()
+add_coin_price_data()
 
 session.commit()
 session.close()

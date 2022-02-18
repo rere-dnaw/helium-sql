@@ -6,7 +6,8 @@ from datetime import datetime
 import my_methods
 import requests
 from requests.adapters import HTTPAdapter, Retry
-from db_insert_DC import add_missing_price
+import db_insert_DC
+import db_insert_inflationHNT
 
 
 
@@ -82,91 +83,6 @@ def add_feergreed(row):
     session.add(indexFG)
 
 
-def add_DCburn(row):
-    '''
-    Add data about dc burned into BurnedDC table
-    '''
-    DCburn = BurnedDC(time_stamp = row['time_stamp'],
-                    date = row['date'],
-                    interval = row['interval'],
-                    state_channel = row['state_channel'],
-                    fee = row['fee'],
-                    assert_location = row['assert_location'],
-                    add_gateway = row['add_gateway'],
-                    total = row['total'])
-    session.add(DCburn)
-
-
-def prepare_Inflation_record_1d(api_data):
-    '''
-    This function will prepare data for insering
-    into table database for timeframe 1d.
-    '''
-
-    record = {}
-
-    if len(api_data['data']) == 0:
-            record['rewards'] = 0
-            record['token_supply'] = 0
-    else:
-        if 'total' in api_data['data'][0] and api_data['data'][0]['total'] != None:
-                record['rewards'] = api_data['data'][0]['total']
-        else:
-            record['rewards'] = 0
-
-    record['token_supply'] = 0
-    record['date'] = datetime.fromisoformat(api_data['meta']['min_time'][:-1])
-    record['time_stamp'] = int(round(record['date'].timestamp()))
-    record['interval'] = '1d'
-
-    add_InflationHNT(record)
-
-
-def prepare_Inflation_record_1h(api_data):
-    '''
-    This function will prepare data for insering
-    into table database for timeframe 1d.
-    '''
-
-    hour_list = my_methods.create_list_hours(datetime.fromisoformat(api_data['meta']['min_time'][:-1]), 24)
-
-    if len(api_data['data']) == 0:
-            for j in range(0,len(hour_list)):
-                record['rewards'] = 0
-                record['token_supply'] = 0
-                add_InflationHNT(record)
-    else:
-        record_list = api_data['data']
-        record_list.reverse()
-
-        for j in range(0,len(hour_list)):
-            record = {}
-            if 'total' in record_list[j] and record_list[j]['total'] != None:
-                record['rewards'] = record_list[j]['total']
-            else:
-                record['rewards'] = 0
-
-            record['token_supply'] = 0
-            record['date'] = hour_list[j]
-            record['time_stamp'] = int(round(record['date'].timestamp()))
-            record['interval'] = '1h'
-            add_InflationHNT(record)
-    
-    session.commit()
-
-
-def add_InflationHNT(row):
-    '''
-    Add data about HNT rewars into InflationHNT table
-    '''
-    DCburn = InflationHNT(time_stamp = row['time_stamp'],
-                    date = row['date'],
-                    interval = row['interval'],
-                    rewards = row['rewards'],
-                    token_supply = row['token_supply'])
-    session.add(DCburn)
-
-
 def init_db():
     '''
     This method will fill db table 
@@ -200,36 +116,8 @@ def fill_db(days, hours):
         add_feergreed(fear_greed_val)
 
 
-    add_missing_price()
-
-    # create list of days
-    date_list = my_methods.create_list_days(datetime.now(), days)
-
-    for i in range (0,len(date_list)-1):
-        query = {'min_time':date_list[i].isoformat(),
-                'max_time': date_list[i+1].isoformat(),
-                'bucket':'day'}
-
-        response_inflation = http.get('https://api.helium.io/v1/rewards/sum', params=query)
-        print(response_inflation.status_code)
-
-        response_inflation_json = response_inflation.json()
-
-        prepare_Inflation_record_1d(response_inflation_json)
-        
-
-        query = {'min_time':date_list[i].isoformat(),
-                'max_time': date_list[i+1].isoformat(),
-                'bucket':'hour'}
-    
-
-        response_inflation = http.get('https://api.helium.io/v1/rewards/sum', params=query)
-        print(response_inflation.status_code)
-
-        response_inflation_json = response_inflation.json()
-
-        prepare_Inflation_record_1h(response_inflation_json)
-  
+    db_insert_DC.pull_data_DC_burned()
+    db_insert_inflationHNT.pull_HNT_inflation_data()
 
     session.commit()
 
