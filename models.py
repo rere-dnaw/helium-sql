@@ -99,4 +99,18 @@ class RewardsHNT(Base):
         self.interval = interval
         self.rewards = rewards
 
+
+class TokenSupplyHNT(Base):
+    __tablename__ = "Token Supply"
+
+    id = Column(Integer, primary_key=True)
+    time_stamp = Column('timestamp', Integer)
+    date = Column('Date', DateTime)
+    supply_amount = Column('Supply amount', Integer)
+
+    def __init__(self, time_stamp, date, supply_amount):
+        self.time_stamp = time_stamp
+        self.date = date
+        self.supply_amount = supply_amount
+
         
