@@ -1,8 +1,8 @@
 from base import Session, engine, Base
-from db_insert import db_insert_binance
-from db_insert import db_insert_fear_greed
-from db_insert import db_insert_DC
-from db_insert import db_insert_inflationHNT
+import db_insert_binance
+import db_insert_fear_greed
+import db_insert_DC
+import db_insert_rewardsHNT
 
 
 Base.metadata.create_all(engine)
@@ -21,7 +21,7 @@ def init_db():
 
     db_insert_DC.pull_data_DC_burned()
 
-    db_insert_inflationHNT.pull_HNT_inflation_data()
+    db_insert_rewardsHNT.pull_HNT_reward_data()
 
 
 init_db()

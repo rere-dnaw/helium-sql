@@ -1,6 +1,6 @@
 # every hour
 
-from models import InflationHNT
+from models import RewardsHNT
 from base import Session, engine, Base
 from datetime import datetime
 import my_methods
@@ -26,29 +26,28 @@ http.mount("https://", adapter)
 http.mount("http://", adapter)
 
 
-def add_InflationHNT(row):
+def add_reward_HNT(row):
     '''
-    Add data about HNT rewars into InflationHNT table
+    Add data about HNT rewars into RewardsHNT table
     '''
-    inflationHNT = InflationHNT(time_stamp = row['time_stamp'],
+    rewardHNT = RewardsHNT(time_stamp = row['time_stamp'],
                             date = row['date'],
                             interval = row['interval'],
-                            rewards = row['rewards'],
-                            token_supply = row['token_supply'])
-    session.add(inflationHNT)
+                            rewards = row['rewards'])
+    session.add(rewardHNT)
     
 
 def get_last_date(interval):
     '''
     Will get start date for generating data for provided interval.
     '''
-    if session.query(InflationHNT).filter(InflationHNT.interval.like(interval)).order_by(InflationHNT.date.desc()).first() is None:
+    if session.query(RewardsHNT).filter(RewardsHNT.interval.like(interval)).order_by(RewardsHNT.date.desc()).first() is None:
         return datetime.strptime(statics.START_DAY, "%Y-%m-%d %H:%M:%S")
     else:
-        return session.query(InflationHNT).filter(InflationHNT.interval.like(interval)).order_by(InflationHNT.date.desc()).first().date
+        return session.query(RewardsHNT).filter(RewardsHNT.interval.like(interval)).order_by(RewardsHNT.date.desc()).first().date
 
 
-def prepare_inflation_record_1h(api_data):
+def prepare_reward_record_1h(api_data):
     '''
     This function will prepare data for insering
     into database table for timeframe 1h.
@@ -66,18 +65,17 @@ def prepare_inflation_record_1h(api_data):
         else:
             record['rewards'] = 0
 
-        record['token_supply'] = 0
         record['date'] = hour_list[j]
         record['time_stamp'] = int(round(record['date'].timestamp()))
         record['interval'] = '1h'
         
-        add_InflationHNT(record)
+        add_reward_HNT(record)
         print('Created record model for time stamp: {0}'.format(hour_list[j]))
 
 
 def pull_data_interval_1h():
     '''
-    Will pull HNT inflation data for interval 1 hour
+    Will pull HNT reward data for interval 1 hour
     '''
 
     date_last_1h = get_last_date('1h')
@@ -99,7 +97,7 @@ def pull_data_interval_1h():
             response_json = response.json()
             response_json['data'].reverse()
             if len(response_json['data']) == len(chunk):
-                prepare_inflation_record_1h(response_json)
+                prepare_reward_record_1h(response_json)
                 session.commit()
             else:
                 for i in range (0,len(chunk)-1):
@@ -108,12 +106,12 @@ def pull_data_interval_1h():
                             'bucket':'hour'}
                     response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
                     response_json = response.json()
-                    prepare_inflation_record_1h(response_json)
+                    prepare_reward_record_1h(response_json)
                     session.commit()   
             session.commit()
 
 
-def prepare_inflation_record_1d(api_data):
+def prepare_reward_record_1d(api_data):
     '''
     This function will prepare data for insering
     into database table for timeframe 1d.
@@ -131,25 +129,23 @@ def prepare_inflation_record_1d(api_data):
 
         if len(api_data['data']) == 0:
                 record['rewards'] = 0
-                record['token_supply'] = 0
         else:
             if 'total' in api_data['data'][j] and api_data['data'][j]['total'] != None:
                     record['rewards'] = api_data['data'][j]['total']
             else:
                 record['rewards'] = 0
 
-        record['token_supply'] = 0
         record['date'] = days_list[j]
         record['time_stamp'] = int(round(record['date'].timestamp()))
         record['interval'] = '1d'
 
-        add_InflationHNT(record)
+        add_reward_HNT(record)
         print('Created record model for time stamp: {0}'.format(str(record['date'])))
 
 
 def pull_data_interval_1d():
     '''
-    Will pull HNT inflation data for interval 1 day
+    Will pull HNT reward data for interval 1 day
     '''
     date_last_1d = get_last_date('1d')
 
@@ -157,25 +153,34 @@ def pull_data_interval_1d():
     
     date_list = my_methods.create_list_days(datetime.now(), days - 1)
 
+    if len(date_list) > 1:
+        for i in range (0,len(date_list)-1):
+            query = {'min_time':date_list[i].isoformat(),
+                    'max_time': date_list[i+1].isoformat()}
 
-    for i in range (0,len(date_list)-1):
-        query = {'min_time':date_list[i].isoformat(),
-                'max_time': date_list[i+1].isoformat()}
+            response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
+            response_json = response.json()
+            prepare_reward_record_1d(response_json)
+            session.commit()
+    else:
+        query = {'min_time':date_list[0].isoformat(),
+                 'max_time': my_methods.add_day(date_list[0]).isoformat()}
 
         response = http.get('https://api.helium.io/v1/rewards/sum', params=query)
         response_json = response.json()
-        prepare_inflation_record_1d(response_json)
-        session.commit() 
+        prepare_reward_record_1d(response_json)
+        session.commit()
 
 
-def pull_HNT_inflation_data():
+def pull_HNT_reward_data():
     '''
     Will pull data for burned DC
     '''
     pull_data_interval_1d()
     #pull_data_interval_1h()
 
-
+#112605262.7288517
+#112605250.72205125
 def add_first_record():
     '''
     This will add first record into database.
@@ -185,14 +190,13 @@ def add_first_record():
     row['date'] = datetime.fromtimestamp(1623621600)
     row['interval']= '1d'
     row['rewards'] = 0
-    row['token_supply'] = 0
-    add_InflationHNT(row)
+    add_reward_HNT(row)
     row['interval']= '1h'
-    add_InflationHNT(row)
+    add_reward_HNT(row)
     session.commit()
 
 #add_first_record()
 
-pull_HNT_inflation_data()
+pull_HNT_reward_data()
 
 session.close()

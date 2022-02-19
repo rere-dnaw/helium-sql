@@ -224,7 +224,17 @@ def pull_data_interval_1d():
                     response = http.get('https://api.helium.io/v1/dc_burns/sum', params=query)
                     response_json = response.json()
                     prepare_DC_record_1d(response_json)
-                    session.commit() 
+                    session.commit()
+
+    if len(date_list) == 1:
+        query = {'min_time':date_list[0].isoformat(),
+                'max_time': my_methods.add_day(date_list[0]).isoformat(),
+                'bucket':'day'}
+        response = http.get('https://api.helium.io/v1/dc_burns/sum', params=query)
+        response_json = response.json()
+        response_json['data'].reverse()  
+        prepare_DC_record_1d(response_json)
+        session.commit()
 
 
 def pull_data_DC_burned():
