@@ -3,6 +3,7 @@ import db_insert_binance
 import db_insert_fear_greed
 import db_insert_DC
 import db_insert_rewardsHNT
+import db_insert_HNT_supply
 
 
 Base.metadata.create_all(engine)
@@ -22,6 +23,8 @@ def init_db():
     db_insert_DC.pull_data_DC_burned()
 
     db_insert_rewardsHNT.pull_HNT_reward_data()
+
+    db_insert_HNT_supply.pull_HNT_pull_supply_HNT()
 
 
 init_db()

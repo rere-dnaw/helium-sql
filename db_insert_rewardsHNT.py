@@ -162,7 +162,7 @@ def pull_data_interval_1d():
             response_json = response.json()
             prepare_reward_record_1d(response_json)
             session.commit()
-    else:
+    if len(date_list) == 1:
         query = {'min_time':date_list[0].isoformat(),
                  'max_time': my_methods.add_day(date_list[0]).isoformat()}
 
