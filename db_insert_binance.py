@@ -57,11 +57,11 @@ def get_coin_id(pair):
         return [item[0] for item in pair_id][0]
 
 
-def pull_data_for_interval(pair, interval, days):
+def pull_data_for_interval(pair, interval, limit):
     '''
     '''
     pairID = get_coin_id(pair)
-    data = exchange.fetch_ohlcv(pair, interval, limit=days)
+    data = exchange.fetch_ohlcv(pair, interval, limit=limit)
     for row in data:
         add_price(row, pairID, interval)
     session.commit()
@@ -86,19 +86,32 @@ def add_coin_price_data():
     for pair in statics.TOKEN_LIST:
         coin_id = get_coin_id(pair)
         date_last_1d = get_last_date(coin_id, '1d')
+        print(date_last_1d)
         date_last_1h = get_last_date(coin_id, '1h')
+        
+        print(date_last_1h)
 
+        date_last_4h = get_last_date(coin_id, '4h')
+        print(date_last_4h)
+
+
+
+        print(datetime.now())
         days = my_methods.count_days(date_last_1d, datetime.now())
-        hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
+        hours = my_methods.count_hours(date_last_1h, datetime.now())
+        hours4 = my_methods.count_hours(date_last_4h, datetime.now())
 
         add_coin(pair)
         session.commit()
 
-        pull_data_for_interval(pair, '1d', days)
+        if days != 0:
+            pull_data_for_interval(pair, '1d', days)
 
-        pull_data_for_interval(pair, '1h', hours)
+        if hours != 0:
+            pull_data_for_interval(pair, '1h', hours)
 
-        pull_data_for_interval(pair, '4h', int(round(hours/4,0)))
+        if hours4 >= 4:
+            pull_data_for_interval(pair, '4h', int(round(hours4/4,0)))
 
 
 add_coin_price_data()
