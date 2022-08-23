@@ -81,7 +81,7 @@ def pull_data_interval_1h():
     date_last_1h = get_last_date('1h')
 
     # hours - 1 because of UTC
-    hours = my_methods.count_hours(date_last_1h, datetime.now()) - 1
+    hours = my_methods.count_hours(date_last_1h, datetime.utcnow()) - 1
 
     if hours > 1:
         chunk_size = 240
@@ -149,9 +149,9 @@ def pull_data_interval_1d():
     '''
     date_last_1d = get_last_date('1d')
 
-    days = my_methods.count_days(date_last_1d, datetime.now())
+    days = my_methods.count_days(date_last_1d, datetime.utcnow())
     
-    date_list = my_methods.create_list_days(datetime.now(), days - 1)
+    date_list = my_methods.create_list_days(datetime.utcnow(), days - 1)
 
     if len(date_list) > 1:
         for i in range (0,len(date_list)-1):

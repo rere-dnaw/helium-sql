@@ -52,7 +52,7 @@ def pull_fear_greed_data():
     Will pull data for fear and greed index.
     '''
     date_last_1d = get_last_date()
-    days = int(my_methods.count_days(date_last_1d, datetime.now()))
+    days = int(my_methods.count_days(date_last_1d, datetime.utcnow()))
     if days != 0:
         fear_gree_index = http.get('https://api.alternative.me/fng/?limit={0}'.format(days)).json()
         fear_gree_index['data'].reverse()

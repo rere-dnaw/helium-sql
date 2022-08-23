@@ -96,10 +96,10 @@ def add_coin_price_data():
 
 
 
-        print(datetime.now())
-        days = my_methods.count_days(date_last_1d, datetime.now())
-        hours = my_methods.count_hours(date_last_1h, datetime.now())
-        hours4 = my_methods.count_hours(date_last_4h, datetime.now())
+        print(datetime.utcnow())
+        days = my_methods.count_days(date_last_1d, datetime.utcnow())
+        hours = my_methods.count_hours(date_last_1h, datetime.utcnow())
+        hours4 = my_methods.count_hours(date_last_4h, datetime.utcnow())
 
         add_coin(pair)
         session.commit()

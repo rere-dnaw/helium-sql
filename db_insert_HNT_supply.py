@@ -44,7 +44,7 @@ def prepare_supply_record(api_data):
     record = {}
 
 
-    record['date'] = datetime.now()
+    record['date'] = datetime.utcnow()
     record['time_stamp'] = int(round(record['date'].timestamp()))
     record['supply_amount'] = api_data['data']['token_supply']
 
