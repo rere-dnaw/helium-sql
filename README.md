@@ -9,13 +9,13 @@ The app require `statics.py` file for working which is not included in the repos
 
  `statics.py` 
 ```python
-TOKEN_LIST = ['BTC/USDT','HNT/USDT']
+TOKEN_LIST = ['BTC/USDT','HNT/USDT'] # list of token pairs to pull from binance
 
-DB_FILE_PATH ='dbHeliumApp' 
+DB_FILE_PATH ='dbHeliumApp' # name for db
 
-START_DAY = '2021-01-01 00:00:00'
+START_DAY = '2021-01-01 00:00:00' # start day for pulling data
   
-BINANCE_API_KEY='YOUR_KEY'
+BINANCE_API_KEY='YOUR_KEY' 
 
 BINANCE_SECRET_KEY='YOUR_KEY'
 ```
